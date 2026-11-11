@@ -1,0 +1,6 @@
+import {db} from '@/server/db';
+import {assertOrigin,body,failure,HttpError,limit} from '@/server/security';
+import {invitationByToken} from '@/server/services/invitations';
+import {parseDocument} from '@/features/editor/schema/document';
+import {validateResponse} from '@/features/guests/schema';
+export async function POST(request:Request,{params}:{params:Promise<{token:string}>}){try{assertOrigin(request);const {token}=await params;await limit('rsvp:'+token,15);const invitation=await invitationByToken(token),document=parseDocument(invitation.project.published!.data),deadline=document.eventData['rsvp.deadline'];if(deadline&&Date.now()>Date.parse(deadline+'T23:59:59+08:00'))throw new HttpError(400,'The response deadline has passed. Please contact your hosts.');let input;try{input=validateResponse(await body(request,5000),invitation.guest.maxParty);}catch{throw new HttpError(400,'Check your guest count and response details.');}const {roleConfirmed,...response}=input;await db.$transaction(async tx=>{await tx.rSVPResponse.upsert({where:{invitationId:invitation.id},create:{...response,invitationId:invitation.id},update:response});if(invitation.guest.entourageRole&&roleConfirmed!==undefined)await tx.guest.update({where:{id:invitation.guest.id},data:{roleConfirmed}});});return Response.json({ok:true});}catch(e){return failure(e);}}

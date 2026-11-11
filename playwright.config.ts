@@ -1,0 +1,3 @@
+import {defineConfig} from '@playwright/test';
+try{process.loadEnvFile('.env');}catch{/* External environment variables are also supported. */}
+export default defineConfig({testDir:'tests/e2e',fullyParallel:false,workers:1,timeout:120_000,expect:{timeout:15_000},use:{actionTimeout:15000,navigationTimeout:30000,baseURL:'http://127.0.0.1:3022',channel:'chrome',headless:true,viewport:{width:1600,height:1000},trace:'retain-on-failure'},webServer:{command:'npm run dev -- --port 3022',url:'http://127.0.0.1:3022',timeout:120_000,reuseExistingServer:false,env:{DATABASE_URL:process.env.LANDSCAPE_TEST_DATABASE_URL??process.env.DATABASE_URL??'',NEXTAUTH_URL:'http://127.0.0.1:3022',APP_URL:'http://127.0.0.1:3022',ASSET_STORAGE:'local'}}});

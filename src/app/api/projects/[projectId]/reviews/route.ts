@@ -1,0 +1,7 @@
+import {z} from 'zod';
+import {db} from '@/server/db';
+import {ownedProject} from '@/server/authorization/projects';
+import {assertOrigin,body,failure,newToken,tokenHash} from '@/server/security';
+export async function GET(_r:Request,{params}:{params:Promise<{projectId:string}>}){try{const {projectId}=await params;await ownedProject(projectId);return Response.json(await db.review.findMany({where:{projectId},select:{id:true,expiresAt:true,revokedAt:true,feedback:true,approvedAt:true,approvedRevision:true},orderBy:{expiresAt:'desc'}}),{headers:{'Cache-Control':'no-store'}});}catch(e){return failure(e);}}
+export async function POST(request:Request,{params}:{params:Promise<{projectId:string}>}){try{assertOrigin(request);const {projectId}=await params;await ownedProject(projectId);const token=newToken();await db.review.create({data:{projectId,tokenHash:tokenHash(token),expiresAt:new Date(Date.now()+7*86400_000)}});return Response.json({url:'/review/'+token});}catch(e){return failure(e);}}
+export async function PATCH(request:Request,{params}:{params:Promise<{projectId:string}>}){try{assertOrigin(request);const {projectId}=await params;await ownedProject(projectId);const data=z.object({reviewId:z.string()}).strict().parse(await body(request,1000));await db.review.updateMany({where:{id:data.reviewId,projectId},data:{revokedAt:new Date()}});return Response.json({ok:true});}catch(e){return failure(e);}}

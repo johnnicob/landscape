@@ -1,0 +1,6 @@
+import {z} from 'zod';
+import {db} from '@/server/db';
+import {ownedProject} from '@/server/authorization/projects';
+import {assertOrigin,body,failure,HttpError,newToken,tokenHash} from '@/server/security';
+export async function POST(request:Request,{params}:{params:Promise<{projectId:string}>}){try{assertOrigin(request);const {projectId}=await params;await ownedProject(projectId);const {guestId}=z.object({guestId:z.string()}).strict().parse(await body(request,1000));if(!await db.guest.findFirst({where:{id:guestId,projectId}}))throw new HttpError(404,'Guest not found.');const token=newToken(),data={tokenHash:tokenHash(token),expiresAt:new Date(Date.now()+365*86400_000),revokedAt:null};await db.invitation.upsert({where:{guestId},create:{projectId,guestId,...data},update:data});return Response.json({url:'/invite/'+token});}catch(e){return failure(e);}}
+export async function DELETE(request:Request,{params}:{params:Promise<{projectId:string}>}){try{assertOrigin(request);const {projectId}=await params;await ownedProject(projectId);const {guestId}=z.object({guestId:z.string()}).strict().parse(await body(request,1000));await db.invitation.updateMany({where:{projectId,guestId},data:{revokedAt:new Date()}});return Response.json({ok:true});}catch(e){return failure(e);}}

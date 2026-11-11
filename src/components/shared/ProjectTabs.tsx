@@ -1,0 +1,2 @@
+import Link from 'next/link';
+export function ProjectTabs({id}:{id:string}){return <nav className="project-tabs" aria-label="Project navigation"><Link href={'/studio/projects/'+id+'/edit'}>Open canvas</Link><Link href={'/studio/projects/'+id+'/reviews'}>Client reviews</Link><Link href={'/studio/projects/'+id+'/guests'}>Guests & RSVP</Link><Link href={'/studio/projects/'+id+'/analytics'}>Analytics</Link><Link href={'/studio/projects/'+id+'/publications'}>Publication history</Link></nav>;}

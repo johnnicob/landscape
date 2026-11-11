@@ -1,0 +1,5 @@
+import {z} from 'zod';
+import {hash} from 'bcryptjs';
+import {db,configured} from '@/server/db';
+import {assertOrigin,limit,body,failure,HttpError} from '@/server/security';
+export async function POST(request:Request){try{assertOrigin(request);if(!configured())throw new HttpError(503,'Connect PostgreSQL to create your workspace. See the setup guide.');const data=z.object({name:z.string().trim().min(1).max(100),email:z.email().max(254),password:z.string().min(12).max(200)}).strict().parse(await body(request,5000));const email=data.email.toLowerCase();await limit('register:'+email,4,3600_000);if(await db.user.findUnique({where:{email}}))throw new HttpError(400,'An account could not be created with those details. Try signing in.');await db.user.create({data:{email,name:data.name,passwordHash:await hash(data.password,12),memberships:{create:{role:'ADMIN',workspace:{create:{name:data.name+'’s workspace'}}}}}});return Response.json({ok:true},{status:201});}catch(error){return failure(error);}}

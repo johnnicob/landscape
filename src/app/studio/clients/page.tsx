@@ -1,0 +1,5 @@
+import {StudioShell} from '@/components/shared/StudioShell';
+import {operator} from '@/server/auth';
+import {db} from '@/server/db';
+import {ClientForm} from '@/features/clients/ClientForm';
+export default async function Page(){const actor=await operator(),clients=await db.client.findMany({where:{workspaceId:actor.workspaceId},include:{_count:{select:{projects:true}}},orderBy:{createdAt:'desc'}});return <StudioShell><div className="studio-page"><span className="eyebrow">THE PEOPLE YOU CREATE WITH</span><h1>Your clients.</h1><p className="muted">A little space for every meaningful collaboration.</p><section className="surface"><h2>Add someone new</h2><ClientForm/></section><section className="surface"><h2>Your address book</h2><table className="data-table"><thead><tr><th>Name</th><th>Email</th><th>Websites</th></tr></thead><tbody>{clients.map(c=><tr key={c.id}><td>{c.name}</td><td>{c.email||'—'}</td><td>{c._count.projects}</td></tr>)}</tbody></table>{!clients.length&&<p className="muted small" style={{padding:20}}>No clients yet.</p>}</section></div></StudioShell>;}

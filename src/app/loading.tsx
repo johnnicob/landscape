@@ -1,0 +1,1 @@
+export default function Page(){return <main className="simple-page" aria-busy="true"><span className="eyebrow">LANDSCAPE STUDIO</span><h1>Making a little room.</h1><p role="status">Opening your canvas…</p></main>;}

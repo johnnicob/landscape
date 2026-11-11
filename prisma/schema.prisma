@@ -1,0 +1,209 @@
+generator client {
+ provider = "prisma-client-js"
+}
+datasource db {
+ provider = "postgresql"
+ url = env("DATABASE_URL")
+}
+enum Role {
+ ADMIN
+ OPERATOR
+ REVIEWER
+}
+model User {
+ id String @id @default(cuid())
+ email String @unique
+ name String
+ passwordHash String
+ createdAt DateTime @default(now())
+ memberships Membership[]
+}
+model Workspace {
+ id String @id @default(cuid())
+ name String
+ createdAt DateTime @default(now())
+ memberships Membership[]
+ clients Client[]
+ projects Project[]
+ templates Template[]
+ assets Asset[]
+ audit AuditEvent[]
+}
+model Membership {
+ id String @id @default(cuid())
+ workspaceId String
+ userId String
+ role Role @default(OPERATOR)
+ workspace Workspace @relation(fields:[workspaceId],references:[id],onDelete:Cascade)
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ @@unique([workspaceId,userId])
+ @@index([userId])
+}
+model Client {
+ id String @id @default(cuid())
+ workspaceId String
+ name String
+ email String @default("")
+ createdAt DateTime @default(now())
+ workspace Workspace @relation(fields:[workspaceId],references:[id],onDelete:Cascade)
+ projects Project[]
+ @@index([workspaceId])
+}
+model Project {
+ id String @id @default(cuid())
+ workspaceId String
+ clientId String?
+ name String
+ category String @default("wedding")
+ templateId String
+ slug String @unique
+ archivedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ publishedId String? @unique
+ workspace Workspace @relation(fields:[workspaceId],references:[id],onDelete:Cascade)
+ client Client? @relation(fields:[clientId],references:[id],onDelete:SetNull)
+ document SiteDocument?
+ revisions SiteRevision[]
+ publications Publication[] @relation("ProjectPublications")
+ published Publication? @relation("LivePublication",fields:[publishedId],references:[id],onDelete:SetNull)
+ assets Asset[]
+ guests Guest[]
+ invitations Invitation[]
+ reviews Review[]
+ domains Domain[]
+ visits Visit[]
+ @@index([workspaceId,updatedAt])
+}
+model SiteDocument {
+ id String @id @default(cuid())
+ projectId String @unique
+ data Json
+ revision Int @default(0)
+ updatedAt DateTime @updatedAt
+ project Project @relation(fields:[projectId],references:[id],onDelete:Cascade)
+}
+model SiteRevision {
+ id String @id @default(cuid())
+ projectId String
+ data Json
+ number Int
+ label String @default("Autosave")
+ createdAt DateTime @default(now())
+ project Project @relation(fields:[projectId],references:[id],onDelete:Cascade)
+ @@unique([projectId,number])
+}
+model Publication {
+ id String @id @default(cuid())
+ projectId String
+ data Json
+ revision Int
+ createdAt DateTime @default(now())
+ project Project @relation("ProjectPublications",fields:[projectId],references:[id],onDelete:Cascade)
+ liveProject Project? @relation("LivePublication")
+ @@index([projectId,createdAt])
+}
+model Template {
+ id String @id @default(cuid())
+ workspaceId String
+ name String
+ category String
+ version Int @default(1)
+ data Json
+ workspace Workspace @relation(fields:[workspaceId],references:[id],onDelete:Cascade)
+ @@index([workspaceId])
+}
+model Asset {
+ id String @id @default(cuid())
+ workspaceId String
+ projectId String?
+ key String @unique
+ name String
+ alt String
+ mime String
+ bytes Int
+ width Int
+ height Int
+ createdAt DateTime @default(now())
+ workspace Workspace @relation(fields:[workspaceId],references:[id],onDelete:Cascade)
+ project Project? @relation(fields:[projectId],references:[id],onDelete:SetNull)
+ @@index([workspaceId])
+}
+model Domain {
+ id String @id @default(cuid())
+ projectId String
+ hostname String @unique
+ verifiedAt DateTime?
+ project Project @relation(fields:[projectId],references:[id],onDelete:Cascade)
+}
+model Guest {
+ id String @id @default(cuid())
+ projectId String
+ name String
+ email String @default("")
+ household String @default("")
+ maxParty Int @default(1)
+ entourageRole String @default("")
+ roleConfirmed Boolean?
+ project Project @relation(fields:[projectId],references:[id],onDelete:Cascade)
+ invitation Invitation?
+ @@index([projectId])
+}
+model Invitation {
+ id String @id @default(cuid())
+ projectId String
+ guestId String @unique
+ tokenHash String @unique
+ expiresAt DateTime
+ revokedAt DateTime?
+ project Project @relation(fields:[projectId],references:[id],onDelete:Cascade)
+ guest Guest @relation(fields:[guestId],references:[id],onDelete:Cascade)
+ response RSVPResponse?
+ @@index([projectId])
+}
+model RSVPResponse {
+ id String @id @default(cuid())
+ invitationId String @unique
+ attending Boolean
+ partySize Int
+ notes String @default("")
+ updatedAt DateTime @updatedAt
+ invitation Invitation @relation(fields:[invitationId],references:[id],onDelete:Cascade)
+}
+model Review {
+ id String @id @default(cuid())
+ projectId String
+ tokenHash String @unique
+ expiresAt DateTime
+ revokedAt DateTime?
+ feedback Json @default("[]")
+ approvedRevision Int?
+ approvedAt DateTime?
+ project Project @relation(fields:[projectId],references:[id],onDelete:Cascade)
+ @@index([projectId])
+}
+model AuditEvent {
+ id String @id @default(cuid())
+ workspaceId String
+ actorId String
+ action String
+ projectId String?
+ createdAt DateTime @default(now())
+ workspace Workspace @relation(fields:[workspaceId],references:[id],onDelete:Cascade)
+ @@index([workspaceId,createdAt])
+}
+model Visit {
+ id String @id @default(cuid())
+ projectId String
+ day DateTime @db.Date
+ visitorHash String
+ count Int @default(1)
+ project Project @relation(fields:[projectId],references:[id],onDelete:Cascade)
+ @@unique([projectId,day,visitorHash])
+}
+model RateLimit {
+ key String @id
+ count Int @default(1)
+ expiresAt DateTime
+ @@index([expiresAt])
+}

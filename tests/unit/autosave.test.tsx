@@ -1,0 +1,10 @@
+// @vitest-environment jsdom
+import {afterEach,it,expect,vi} from 'vitest';
+import {render,screen,fireEvent,cleanup,act} from '@testing-library/react';
+import {EditorProvider,useEditor,useEditorApi} from '@/features/editor/state/context';
+import {useAutosave} from '@/features/editor/hooks/useAutosave';
+import {instantiateTemplate} from '@/features/templates/catalog';
+function Harness(){const store=useEditorApi(),status=useEditor(s=>s.status),title=useEditor(s=>s.document.metadata.title);useAutosave('test-project');return <><span role="status">{status}</span><p>{title}</p><button onClick={()=>store.getState().commit(d=>({...d,metadata:{...d.metadata,title:d.metadata.title+' edited'}}))}>Edit</button><button onClick={()=>store.getState().undo()}>Undo</button></>;}
+afterEach(()=>{cleanup();vi.useRealTimers();vi.unstubAllGlobals();});
+it('recognizes Undo returning to an already-saved document',async()=>{vi.useFakeTimers();const fetch=vi.fn(async()=>({ok:true,json:async()=>({revision:1})}));vi.stubGlobal('fetch',fetch);render(<EditorProvider document={instantiateTemplate('editorial-romance')} revision={0}><Harness/></EditorProvider>);fireEvent.click(screen.getByRole('button',{name:'Edit'}));await act(()=>vi.advanceTimersByTimeAsync(800));expect(screen.getByRole('status').textContent).toBe('Saved');fireEvent.click(screen.getByRole('button',{name:'Edit'}));fireEvent.click(screen.getByRole('button',{name:'Undo'}));expect(screen.getByRole('status').textContent).toBe('Saved');expect(fetch).toHaveBeenCalledTimes(1);});
+it('shows conflicts while retaining local edits',async()=>{vi.useFakeTimers();vi.stubGlobal('fetch',async()=>({ok:false,status:409,json:async()=>({error:'A newer revision exists.'})}));render(<EditorProvider document={instantiateTemplate('editorial-romance')} revision={0}><Harness/></EditorProvider>);fireEvent.click(screen.getByRole('button',{name:'Edit'}));await act(()=>vi.advanceTimersByTimeAsync(800));expect(screen.getByRole('status').textContent).toBe('Conflict');expect(screen.getByText('Alex & Jamie edited')).toBeDefined();});
